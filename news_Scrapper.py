@@ -188,18 +188,17 @@ def SaveOutput(outputpath):
 	with open(outputpath+"\\"+date+"\\"+fname+'.json','w') as Ofile:
 		json.dump(news,Ofile,indent=3)
 
-
+# Start of scraping 
 def Scrape(file):
 	for i in file:
 		company,sec_code=GetCompanyName(i)
 		count=0
 		with ThreadPoolExecutor() as exe:
 			k=getLinks(i)
-
 			exe.map(getArticle,k,[company]*len(k) ,[sec_code]*len(k))
 			exe.shutdown(wait=True)
 	
-
+# Accessing command line arguments
 opath=sys.argv[1].split('=')[1]
 srcList=sys.argv[2].split("=")[1]
 file=open(srcList,'r')
