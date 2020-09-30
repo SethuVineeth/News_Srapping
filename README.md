@@ -258,8 +258,9 @@ def SaveOutput(outputpath):
 
 
 ```python
-opath='C:\\Users\\vineeth\\Downloads'                    # Output file path
-file=open('C:\\Users\\vineeth\\Practice\\input (2).txt') # open(srcList)
+opath=sys.argv[1].split('=')[1]
+srcList=sys.argv[2].split("=")[1]
+file=open(srcList,'r')
 Scrape(file)
 SaveOutput(opath)
 ```
