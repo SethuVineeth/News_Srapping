@@ -12,7 +12,7 @@ import pymongo
 from datetime import datetime							#subprocess.check_call([sys.executable, "-m", "pip", "install", 'beautifulsoup4'])# installing Beautiful Soup
 from bs4 import BeautifulSoup as bs 					#subprocess.check_call([sys.executable, "-m", "pip", "install", 'tldextract']) #installing tldextract
 import tldextract
-from flask import Flask,jsonify,request
+from flask import request
 import pickle
 import pandas as pd
 import json
@@ -97,43 +97,47 @@ def GetCompanyName(url):
 		return " "," "
 #Get Article information 
 def getArticle(url,company,sec_code):
-	article=Article(url)
-	article.download()
-	article.build()
-	article.parse()
-	article.nlp()
-	ans={}
-	hsh=hashlib.md5(article.title.encode())
-	hsh=hsh.hexdigest()
-	ans['_id']=str(hsh)
-	ans['title']=str(article.title)
-	ans['summary']=str(article.summary).replace('\n','')
-	if article.publish_date==None:
-		ans['publish_date']=str(datetime.now().date())
-		ans['publish_time']=str(datetime.now().time())
-	else:
-		ans['publish_date']=str(article.publish_date.date())
-		ans['publish_time']=str(article.publish_date.time())
-	ans['authors']=article.authors
-	ans['source']=str(article.source_url)
-	ans['company']=company
-	ans['Security']=sec_code
-	ans['category']='news'
-	ans['keywords']=article.keywords
-	sd=[]
-	st=[]
 	try:
-		matches = datefinder.find_dates(article.summary)
-		for match in set(matches):
-			sd.append(str(match.date()))
-			st.append(str(match.time()))
+		print(company,sec_code)
+		article=Article(url)
+		article.download()
+		article.build()
+		article.parse()
+		article.nlp()
+		ans={}
+		hsh=hashlib.md5(article.title.encode())
+		hsh=hsh.hexdigest()
+		ans['_id']=str(hsh)
+		ans['title']=str(article.title)
+		ans['summary']=str(article.summary).replace('\n','')
+		if article.publish_date==None:
+			ans['publish_date']=str(datetime.now().date())
+			ans['publish_time']=str(datetime.now().time())
+		else:
+			ans['publish_date']=str(article.publish_date.date())
+			ans['publish_time']=str(article.publish_date.time())
+		ans['authors']=article.authors
+		ans['source']=str(article.source_url)
+		ans['company']=company
+		ans['Security']=sec_code
+		ans['category']='news'
+		ans['keywords']=article.keywords
+		sd=[]
+		st=[]
+		try:
+			matches = datefinder.find_dates(article.summary)
+			for match in set(matches):
+				sd.append(str(match.date()))
+				st.append(str(match.time()))
+		except:
+			pass
+		ans['story_dates']=sd
+		ans['story_time']=st
+
+		news.append(ans)
+		insert_into_db(ans)
 	except:
 		pass
-	ans['story_dates']=sd
-	ans['story_time']=st
-
-	news.append(ans)
-	insert_into_db(ans)
 	print("Success - "+" "+url)
 # Get Article URLS from the given link	
 def getLinks(plink):
@@ -191,96 +195,13 @@ def Scrape(file):
 		count=0
 		with ThreadPoolExecutor() as exe:
 			k=getLinks(i)
+
 			exe.map(getArticle,k,[company]*len(k) ,[sec_code]*len(k))
 			exe.shutdown(wait=True)
 	
-
-
 
 opath=sys.argv[1].split('=')[1]
 srcList=sys.argv[2].split("=")[1]
 file=open(srcList,'r')
 Scrape(file)
 SaveOutput(opath)
-
-app=Flask(__name__)
-
-@app.route('/')
-def show():
-	date=datetime.date(datetime.now())
-	date=str(date)
-	feeds=Collection.find({'publish_date':{'$eq': date}})
-	return jsonify(feeds)
-
-print(len(news))
-@app.route('/stats')
-def Stats():
-	dates=Collection.distinct('publish_date')
-	stats=[]
-	for date in sorted(dates,reverse=True):
-		date_stat={}
-		sources=Collection.distinct('source')
-		for src in sources:
-			count=Collection.count_documents({'publish_date':date,'source':src})
-			if count>0:
-				date_stat[src]=count
-		res={}
-		res[date]=date_stat
-		stats.append(res)
-	return jsonify(stats)
-
-@app.route('/stats/overdate')
-def overdate():
-	results=[]
-	temp=Collection.distinct('source')
-	dates=Collection.distinct('publish_date')
-	for src in temp:
-		src_stats={}
-		for date in sorted(dates,reverse=True):
-			src_stats[date]=Collection.count_documents({'source': src,'publish_date': date})
-		res={}
-		res[src]=src_stats
-		results.append(res)
-	return jsonify(results)
-
-
-@app.route('/company/<name>')
-def getCompanyDetails(name):
-	results=[]
-	temp=Collection.find({
-    'company': {
-        	'$regex': re.compile(r""+name+"(?i)")
-   		}
-	})
-	for i in temp:
-		results.append(i)
-	return jsonify(results)
-
-@app.route('/companyCode/<code>')
-def getCompanyDetailsCode(code):
-	results=[]
-	temp=Collection.find({'Security':{'$eq': code}})
-	for i in temp:
-		results.append(i)
-	return jsonify(results)
- 
-@app.route('/date/<dateres>')
-def GetByDate(dateres):
-	results=[]
-	temp=Collection.find({'publish_date':{'$eq': dateres}})
-	for i in temp:
-		results.append(i)
-	return jsonify(results)
-
-@app.route('/company', methods=['GET', 'POST']) #allow both GET and POST requests
-def form_example():
-    if request.method == 'POST': #this block is only entered when the form is submitted
-        return getCompanyDetails(request.form['name'])
-
-    return '''<form method="POST">
-                  Company : <input type="text" name="name"><br>
-                  <input type="submit" value="Submit"><br>
-              </form>'''
-
-app.run(port=7000,debug=True)
-
