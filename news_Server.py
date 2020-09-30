@@ -89,6 +89,37 @@ def form_example():
                   Company : <input type="text" name="name"><br>
                   <input type="submit" value="Submit"><br>
               </form>'''
+@app.route('/companiesByDate')
+def getAll():
+	dates=list(Collection.distinct('publish_date'))
+	comp=list(Collection.distinct('company'))
+	res={}
+	for date in sorted(dates,reverse=True):
+		temp_res={}
+		for c in comp:
+			n=Collection.count_documents({'publish_date':date,'company':c})
+			if n>0:
+				temp_res[c]=n
+		if len(temp_res)>0:
+			res[date]=temp_res
+	return jsonify(res)
+
+@app.route('/companies')
+def getAllcomp():
+	dates=list(Collection.distinct('publish_date'))
+	comp=list(Collection.distinct('company'))
+	res=[]
+	temp_res={}
+	for c in comp:
+		if len(c)>3:
+			n=Collection.count_documents({'company':c})
+			if n>0:
+				temp_res[c]=n
+	if len(temp_res)>0:
+		res.append(temp_res)
+	return jsonify(res)
+
+
 
 app.run(port=7000,debug=True)
 
