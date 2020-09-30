@@ -1,0 +1,1 @@
+python news_scrapper.py —root_dir=C:\\Users\\vineeth\\Downloads —source_list=C:\\Users\\vineeth\\Practice\\input_urls.txt
